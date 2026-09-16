@@ -2,6 +2,7 @@ import userModel from "../models/user.model.js";
 import config from "../../config/config.js";
 import crypto from "node:crypto";
 import jwt from "jsonwebtoken";
+import { Session } from "node:inspector";
 
 export async function register(req, res) {
     const { username, email, password } = req.body;
@@ -34,25 +35,43 @@ export async function register(req, res) {
     });
 
     // Generate JWT
-    const token = jwt.sign(
+    const accessToken = jwt.sign(
         {
             id: user._id
         },
         config.JWT_SECRET,
         {
-            expiresIn: "1d"
+            expiresIn: "15m"
         }
     );
 
-    return res.status(201).json({
+  const refreshToken = jwt.sign(
+        {
+            id: user._id
+        },
+        config.JWT_SECRET,
+        {
+            expiresIn: "7d"
+        }
+    );
+
+res.cookie('refreshToken',refreshToken,{
+    httpOnly:true,
+    secure:true,
+    sameSite:'strict',
+ maxAge:7*24*60*60*1000
+})
+
+    res.status(201).json({
         message: "User Registered Successfully",
         user: {
             username: user.username,
             email: user.email
         },
-        token
+        accessToken
     });
 }
+
 
 
 export async function all_users(req, res) {
@@ -97,5 +116,49 @@ res.status(401).json({
     message:"User Not Found"
 })    
 }
+
+}
+
+export async function refreshToken(req,res){
+const refToken = req.cookies.refreshToken;
+
+if(!refToken){
+    return res.status(401).json({
+        message: "Refresh token not found"
+});
+}
+const decoded = jwt.verify(refToken, config.JWT_SECRET);
+
+const accessToken= jwt.sign(
+    {
+        id: decoded.id
+    },
+    config.JWT_SECRET,
+    {
+        expiresIn: "15m"
+    }
+)
+
+const newRefreshToken = jwt.sign(
+{
+    id:decoded.id
+},
+config.JWT_SECRET,
+{
+    expiresIn:"7d"
+}
+);
+
+res.cookie('refreshToken',newRefreshToken,{
+    httpOnly:true,
+    secure:true,
+    sameSite:'strict',
+ maxAge:7*24*60*60*1000
+})
+
+res.status(200).json({
+message:"Access Token Generated Successfully",
+accessToken
+})
 
 }
