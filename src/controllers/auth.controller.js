@@ -139,6 +139,18 @@ export async function refreshToken(req, res) {
     }
     const decoded = jwt.verify(refToken, config.JWT_SECRET);
 
+const hashedRefToken = crypto.createHash('sha256').update(refToken).digest('hex');
+
+const session = await sessionModel.findOne({
+    refreshTokenHash: hashedRefToken,
+    revoked: false
+});
+
+if(!session){
+    return res.status(401).json({
+        message: "Session Not Found"})
+}
+
     const accessToken = jwt.sign(
         {
             id: decoded.id
@@ -159,6 +171,11 @@ export async function refreshToken(req, res) {
         }
     );
 
+const refreshTokenHash = crypto.createHash('sha256').update(newRefreshToken).digest('hex');
+session.refreshTokenHash = refreshTokenHash;
+session.save();
+
+
     res.cookie('refreshToken', newRefreshToken, {
         httpOnly: true,
         secure: true,
@@ -175,7 +192,7 @@ export async function refreshToken(req, res) {
 
 // Log out From Device ..
 export async function logOut(req, res) {
-    const refTok = req.headers.refreshToken;
+    const refTok = req.cookies.refreshToken;
 
     if (!refTok) {
         return res.status(401).json({
@@ -183,10 +200,30 @@ export async function logOut(req, res) {
         })
     }
 
+    const hashedRefToken = crypto.createHash('sha256').update(refTok).digest('hex');
 
+    const session = await sessionModel.findOne({
+        refreshTokenHash: hashedRefToken,
+        revoked: false
+    });
 
+    if (!session) {
+        return res.status(401)
+        {
+            message: "Session Not Found"
+        }
+
+    }
+
+session.revoked = true;
+
+res.clearCookie('refreshToken');
+
+session.save();
+
+res.status(200).json({
+    message: "Logged Out Successfully"
+});
 
 }
-
-
 
