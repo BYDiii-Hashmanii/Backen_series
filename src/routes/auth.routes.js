@@ -12,5 +12,6 @@ authRouter.get('/get-me',authController.getMe);
 authRouter.get('/refresh-token',authController.refreshToken);
 authRouter.get('/log-out',authController.logOut)
 
+authRouter.get('/log-out-all-devices',authController.logOutAllDevices)
 
 export default authRouter;

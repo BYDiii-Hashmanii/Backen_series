@@ -227,3 +227,35 @@ res.status(200).json({
 
 }
 
+
+// Log out From all devices 
+
+export async function logOutAllDevices(req, res) {
+const refToken = req.cookies.refreshToken;
+
+if (!refToken)
+{
+return res.status(401).json({
+message : "Refresh Token Not Found"
+})
+}
+
+
+const decoded = jwt.verify(refToken, config.JWT_SECRET);
+
+await sessionModel.updateMany({
+user:decoded.id,
+revoked: false
+
+},{
+    revoked: true
+})
+
+res.clearCookie('refreshToken');
+
+return res.status(200).json({
+message: "Logged Out From All Devices Successfully"
+
+})
+
+}
