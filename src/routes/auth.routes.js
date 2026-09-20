@@ -10,6 +10,7 @@ authRouter.post('/register',authController.register);
 authRouter.get('/all_users',authController.all_users);
 authRouter.get('/get-me',authController.getMe);
 authRouter.get('/refresh-token',authController.refreshToken);
+authRouter.get('/log-out',authController.logOut)
 
 
 export default authRouter;
