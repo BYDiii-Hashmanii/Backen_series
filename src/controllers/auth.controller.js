@@ -5,7 +5,6 @@ import jwt from "jsonwebtoken";
 import { Session } from "node:inspector";
 import sessionModel from "../models/session.model.js";
 
-
 export async function register(req, res) {
     const { username, email, password } = req.body;
 
@@ -65,7 +64,6 @@ export async function register(req, res) {
             expiresIn: "15m"
         }
     );
-
 
     res.cookie('refreshToken', refreshToken, {
         httpOnly: true,
@@ -139,17 +137,18 @@ export async function refreshToken(req, res) {
     }
     const decoded = jwt.verify(refToken, config.JWT_SECRET);
 
-const hashedRefToken = crypto.createHash('sha256').update(refToken).digest('hex');
+    const hashedRefToken = crypto.createHash('sha256').update(refToken).digest('hex');
 
-const session = await sessionModel.findOne({
-    refreshTokenHash: hashedRefToken,
-    revoked: false
-});
+    const session = await sessionModel.findOne({
+        refreshTokenHash: hashedRefToken,
+        revoked: false
+    });
 
-if(!session){
-    return res.status(401).json({
-        message: "Session Not Found"})
-}
+    if (!session) {
+        return res.status(401).json({
+            message: "Session Not Found"
+        })
+    }
 
     const accessToken = jwt.sign(
         {
@@ -171,9 +170,9 @@ if(!session){
         }
     );
 
-const refreshTokenHash = crypto.createHash('sha256').update(newRefreshToken).digest('hex');
-session.refreshTokenHash = refreshTokenHash;
-session.save();
+    const refreshTokenHash = crypto.createHash('sha256').update(newRefreshToken).digest('hex');
+    session.refreshTokenHash = refreshTokenHash;
+    session.save();
 
 
     res.cookie('refreshToken', newRefreshToken, {
@@ -215,47 +214,116 @@ export async function logOut(req, res) {
 
     }
 
-session.revoked = true;
+    session.revoked = true;
 
-res.clearCookie('refreshToken');
+    res.clearCookie('refreshToken');
 
-session.save();
+    session.save();
 
-res.status(200).json({
-    message: "Logged Out Successfully"
-});
+    res.status(200).json({
+        message: "Logged Out Successfully"
+    });
 
 }
-
 
 // Log out From all devices 
-
 export async function logOutAllDevices(req, res) {
-const refToken = req.cookies.refreshToken;
+    const refToken = req.cookies.refreshToken;
 
-if (!refToken)
-{
-return res.status(401).json({
-message : "Refresh Token Not Found"
-})
-}
+    if (!refToken) {
+        return res.status(401).json({
+            message: "Refresh Token Not Found"
+        })
+    }
 
+    const decoded = jwt.verify(refToken, config.JWT_SECRET);
 
-const decoded = jwt.verify(refToken, config.JWT_SECRET);
+    await sessionModel.updateMany({
+        user: decoded.id,
+        revoked: false
 
-await sessionModel.updateMany({
-user:decoded.id,
-revoked: false
+    }, {
+        revoked: true
+    })
 
-},{
-    revoked: true
-})
+    res.clearCookie('refreshToken');
 
-res.clearCookie('refreshToken');
+    return res.status(200).json({
+        message: "Logged Out From All Devices Successfully"
 
-return res.status(200).json({
-message: "Logged Out From All Devices Successfully"
-
-})
+    })
 
 }
+
+// Log in User 
+export async function login(req, res) {
+    const { email, password } = req.body;
+
+    const user = await userModel.findOne({ email });
+
+    if (!user) {
+        return res.status(401).json({
+            message: "User Not Found"
+        })
+    }
+
+    const hashedPassword = crypto.createHash('sha256').update(password).digest('hex');
+    const isPasswordValid = hashedPassword === user.password;
+
+    if (!isPasswordValid) {
+        return res.status(401).json({
+            message: "Invalid Password"
+        })
+    }
+
+    const refreshToken = jwt.sign(
+        {
+            id: user._id
+
+        },
+        config.JWT_SECRET,
+        {
+            expiresIn: "7d"
+        }
+    )
+
+    const hashedRefToken = crypto.createHash('sha256').update(refreshToken).digest('hex');
+
+    const session = await sessionModel.create({
+        user: user._id,
+        hashedRefToken,
+        ip: req.ip,
+        userAgent: req.headers['user-agent']
+    })
+
+
+    const accessToken = jwt.sign({
+        id: user._id,
+        sessionId: session._id,
+
+    },
+        config.JWT_SECRET,
+        {
+            expiresIn: "15m"
+        }
+    )
+
+    res.cookie('refreshToken', refreshToken, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'strict',
+        maxAge: 7 * 24 * 60 * 60 * 1000
+    })
+    res.status(200).json({
+        message: "Logged In Successfully",
+
+        user: {
+            username: user.username,
+            email: user.email
+
+        },
+        accessToken
+    })
+
+}
+
