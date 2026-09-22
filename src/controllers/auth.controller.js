@@ -257,6 +257,7 @@ export async function logOutAllDevices(req, res) {
 
 // Log in User 
 export async function login(req, res) {
+
     const { email, password } = req.body;
 
     const user = await userModel.findOne({ email });
@@ -291,7 +292,7 @@ export async function login(req, res) {
 
     const session = await sessionModel.create({
         user: user._id,
-        hashedRefToken,
+        refreshTokenHash:hashedRefToken,
         ip: req.ip,
         userAgent: req.headers['user-agent']
     })

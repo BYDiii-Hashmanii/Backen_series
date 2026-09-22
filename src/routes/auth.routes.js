@@ -10,9 +10,9 @@ authRouter.post('/register',authController.register);
 authRouter.get('/all_users',authController.all_users);
 authRouter.get('/get-me',authController.getMe);
 authRouter.get('/refresh-token',authController.refreshToken);
-authRouter.get('/log-out',authController.logOut)
+authRouter.post('/log-out',authController.logOut)
 
-authRouter.get('/log-out-all-devices',authController.logOutAllDevices)
+authRouter.post('/log-out-all-devices',authController.logOutAllDevices)
 authRouter.post('/login',authController.login);
 
 export default authRouter;
